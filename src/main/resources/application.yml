@@ -1,3 +1,13 @@
 spring:
   application:
     name: sport-courtify
+  datasource:
+    url: jdbc:postgresql://localhost:5433/sport_courtify
+    username: sport_courtify
+    password: sport_courtify
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
