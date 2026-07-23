@@ -1,10 +1,10 @@
-package com.sport_courtify.demo;
+package com.sportcourtify;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class DemoApplicationTests {
+class SportCourtifyApplicationTests {
 
 	@Test
 	void contextLoads() {
