@@ -46,11 +46,17 @@ Add `docker-compose.yml` with a Postgres service for local dev (mapped to host p
 
 - **Done when**: app boots against local Postgres via docker-compose, Flyway migration applies cleanly, empty `JpaRepository` interfaces exist for each entity, all entities carry audited `createdAt`/`updatedAt`.
 
-## Phase 2 — CRUD for Venue / Court / User
+## Phase 2 — CRUD for Venue / Court / User ✅ Done
 
 - Standard REST CRUD (`GET/POST/PUT/DELETE`) for Venue, Court, User via DTOs (never expose entities directly) → Service → Controller layering.
 - Add `spring-boot-starter-validation`; annotate request DTOs (`@NotBlank`, `@Email`, etc.).
 - **Done when**: venues, courts (nested under a venue), and users can be created/listed/fetched/updated/deleted via curl/Postman/Swagger.
+
+Implementation notes:
+- `venue/`, `court/`, `court/dto/` etc. hold `*Request`/`*Response` records, a `*Service`, and a `*Controller`; entities are never returned directly.
+- Courts are nested under venues: `/api/venues/{venueId}/courts[/{courtId}]`; the service verifies the court actually belongs to the given venue (404 otherwise), not just that the court id exists.
+- Added `common/exception/ResourceNotFoundException` (`@ResponseStatus(NOT_FOUND)`) as an interim 404 mechanism — Phase 4's `@RestControllerAdvice` will formalize the error body shape (Spring Boot's default error attributes already return `{timestamp, status, error, path}`, confirmed via manual curl testing).
+- **Build gotcha hit and fixed**: on this project's JDK 25 toolchain, Lombok's implicit classpath-based annotation-processor discovery silently stopped applying once enough cross-package source files were added (`cannot find symbol: method builder()/getX()` for entities, even though Phase 1's smaller file set compiled fine). Fix: pin Lombok explicitly via `<annotationProcessorPaths>` in the `maven-compiler-plugin` config in `pom.xml`. If this class of error resurfaces, check that config first before suspecting the entity/DTO code.
 
 ## Phase 3 — Booking Creation with Conflict Logic (the core of the project)
 
