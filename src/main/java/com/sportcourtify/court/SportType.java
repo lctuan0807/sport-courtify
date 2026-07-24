@@ -4,7 +4,5 @@ public enum SportType {
 	TENNIS,
 	BADMINTON,
 	FOOTBALL,
-	BASKETBALL,
-	VOLLEYBALL,
 	PICKLEBALL
 }
