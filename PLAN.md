@@ -30,19 +30,21 @@ This plan is a **staged roadmap**, not a one-shot change — it's meant to be wo
 
 ## Phase 1 — Domain Model & Persistence Skeleton
 
-Add to `pom.xml`: `spring-boot-starter-data-jpa`, `org.postgresql:postgresql` (runtime), `org.flywaydb:flyway-core` (+ `flyway-database-postgresql`), and Lombok (`org.projectlombok:lombok`, optional).
+Add to `pom.xml`: `spring-boot-starter-data-jpa`, `org.postgresql:postgresql` (runtime), `org.flywaydb:flyway-core` + `flyway-database-postgresql`, `org.springframework.boot:spring-boot-flyway` (Spring Boot 4.1's autoconfigure is split per-integration — this module is required separately from `flyway-core` or Flyway silently never runs), and Lombok (`org.projectlombok:lombok`, optional).
 
-Domain entities (package-by-feature: `venue/`, `court/`, `user/`, `booking/`):
-- **User** — `id`, `fullName`, `email` (unique), `phone`, `createdAt`.
-- **Venue** — `id`, `name`, `address`, `city`, `openTime`, `closeTime`.
-- **Court** — `id`, `venue` (`@ManyToOne`), `name`, `sportType` (enum, `@Enumerated(STRING)`), `pricePerHour`, `active`.
-- **Booking** — `id`, `court` (`@ManyToOne`), `user` (`@ManyToOne`), `startTime`/`endTime` (`LocalDateTime`), `status` (enum: `CONFIRMED`/`CANCELLED`), `createdAt`, `cancelledAt`.
+All entities have `createdAt`/`updatedAt` timestamps, populated automatically via a shared `Auditable` `@MappedSuperclass` (`com.sportcourtify.common.Auditable`, using Spring Data JPA's `@CreatedDate`/`@LastModifiedDate` + `@EnableJpaAuditing` in `common/config/JpaAuditingConfig`) rather than duplicating `@PrePersist`/`@PreUpdate` boilerplate per entity.
 
-Use unidirectional `@ManyToOne` (Court→Venue, Booking→Court/User) for v1 simplicity. Write `V1__init_schema.sql` as the first Flyway migration; use `spring.jpa.hibernate.ddl-auto=validate` once schema stabilizes (not `update`).
+Domain entities (package-by-feature: `venue/`, `court/`, `user/`, `booking/`), each extending `Auditable`:
+- **User** — `id`, `fullName`, `email` (unique), `phone`, + `createdAt`/`updatedAt`.
+- **Venue** — `id`, `name`, `address`, `city`, `openTime`, `closeTime`, + `createdAt`/`updatedAt`.
+- **Court** — `id`, `venue` (`@ManyToOne`), `name`, `sportType` (enum, `@Enumerated(STRING)`), `pricePerHour`, `active`, + `createdAt`/`updatedAt`.
+- **Booking** — `id`, `court` (`@ManyToOne`), `user` (`@ManyToOne`), `startTime`/`endTime` (`LocalDateTime`), `status` (enum: `CONFIRMED`/`CANCELLED`), `cancelledAt`, + `createdAt`/`updatedAt`.
 
-Add `docker-compose.yml` with a Postgres service for local dev.
+Use unidirectional `@ManyToOne` (Court→Venue, Booking→Court/User) for v1 simplicity. Write `V1__init_schema.sql` as the first Flyway migration (every table gets `created_at`/`updated_at` columns); use `spring.jpa.hibernate.ddl-auto=validate` once schema stabilizes (not `update`).
 
-- **Done when**: app boots against local Postgres via docker-compose, Flyway migration applies cleanly, empty `JpaRepository` interfaces exist for each entity.
+Add `docker-compose.yml` with a Postgres service for local dev (mapped to host port **5433**, not 5432, to avoid clashing with a locally-installed Postgres).
+
+- **Done when**: app boots against local Postgres via docker-compose, Flyway migration applies cleanly, empty `JpaRepository` interfaces exist for each entity, all entities carry audited `createdAt`/`updatedAt`.
 
 ## Phase 2 — CRUD for Venue / Court / User
 

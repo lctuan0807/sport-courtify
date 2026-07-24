@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: sport-courtify-postgres
+    environment:
+      POSTGRES_DB: sport_courtify
+      POSTGRES_USER: sport_courtify
+      POSTGRES_PASSWORD: sport_courtify
+    ports:
+      - "5433:5432"
+    volumes:
+      - sport-courtify-pgdata:/var/lib/postgresql/data
+
+volumes:
+  sport-courtify-pgdata:
