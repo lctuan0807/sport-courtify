@@ -58,13 +58,20 @@ Implementation notes:
 - Added `common/exception/ResourceNotFoundException` (`@ResponseStatus(NOT_FOUND)`) as an interim 404 mechanism — Phase 4's `@RestControllerAdvice` will formalize the error body shape (Spring Boot's default error attributes already return `{timestamp, status, error, path}`, confirmed via manual curl testing).
 - **Build gotcha hit and fixed**: on this project's JDK 25 toolchain, Lombok's implicit classpath-based annotation-processor discovery silently stopped applying once enough cross-package source files were added (`cannot find symbol: method builder()/getX()` for entities, even though Phase 1's smaller file set compiled fine). Fix: pin Lombok explicitly via `<annotationProcessorPaths>` in the `maven-compiler-plugin` config in `pom.xml`. If this class of error resurfaces, check that config first before suspecting the entity/DTO code.
 
-## Phase 3 — Booking Creation with Conflict Logic (the core of the project)
+## Phase 3 — Booking Creation with Conflict Logic (the core of the project) ✅ Done
 
 - `BookingService.createBooking(...)`: validate court/user exist and `startTime < endTime`, run an overlap-check repository query (`existing.start < new.end AND existing.end > new.start`, excluding cancelled bookings), throw a `BookingConflictException` → HTTP 409 on conflict, else persist as `CONFIRMED`.
 - `cancelBooking(id)` — soft cancel (status → `CANCELLED`), not a hard delete.
 - Think through edge cases explicitly: back-to-back bookings must be allowed (no overlap), cancelled bookings must not block new ones.
 - Note for the README later: naive check-then-insert has a TOCTOU race under concurrent requests; real fixes are a DB-level exclusion/unique constraint or `SELECT ... FOR UPDATE`. Worth flagging as a known limitation/stretch item rather than silently ignoring — a good interview talking point either way.
 - **Done when**: manual testing confirms overlapping bookings are rejected (409) and legitimate non-overlapping/adjacent bookings succeed.
+
+Implementation notes:
+- `BookingRepository.existsOverlapping` is a single JPQL query implementing the `start < :end AND end > :start` overlap rule, filtered to non-cancelled bookings, so cancelled bookings never block new ones and back-to-back bookings (`end == start`) are correctly allowed (strict inequality).
+- Added `common/exception/BookingConflictException` (`@ResponseStatus(409)`); the `startTime < endTime` check uses Spring's built-in `ResponseStatusException(BAD_REQUEST)` rather than a new exception type, since it's a one-off input check, not a named domain exception from the roadmap.
+- `cancelBooking` is idempotent — cancelling an already-cancelled booking is a no-op that doesn't overwrite `cancelledAt`.
+- Endpoints: `POST /api/bookings`, `GET /api/bookings`, `GET /api/bookings/{id}`, `POST /api/bookings/{id}/cancel` (soft cancel, not `DELETE`, since the booking row is never removed).
+- Manually verified via curl: overlap → 409, adjacent/back-to-back → 201, different court same time → 201, invalid range → 400, cancel then rebook same slot → 201, double-cancel → idempotent, unknown id → 404. The TOCTOU race noted above is still open — real concurrency safety needs a DB-level exclusion constraint or `SELECT ... FOR UPDATE`, deferred to the stretch phase / README limitations section.
 
 ## Phase 4 — Validation & Global Error Handling
 
